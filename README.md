@@ -126,22 +126,7 @@ The live dashboard (`http://localhost:8000`) shows:
 
 ---
 
-## Training Options
 
-### PPO (Stable-Baselines3)
-```bash
-python training/train_ppo.py --steps 200000 --lr 3e-4
-```
-
-### IMPALA (Distributed)
-```bash
-python training/train_impala.py --updates 2000 --workers 4
-```
-
-### TensorBoard
-```bash
-tensorboard --logdir ./logs
-```
 
 ---
 
