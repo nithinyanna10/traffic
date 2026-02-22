@@ -1,0 +1,22 @@
+# RL-Traffic-Control: dashboard + TensorBoard
+version: "3.8"
+
+services:
+  dashboard:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./checkpoints:/app/checkpoints
+      - ./logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: python -m uvicorn dashboard.server:app --host 0.0.0.0 --port 8000
+
+  tensorboard:
+    image: tensorflow/tensorflow:2.14.0
+    entrypoint: ["tensorboard", "--bind_all", "--logdir", "/logs"]
+    ports:
+      - "6006:6006"
+    volumes:
+      - ./logs:/logs
