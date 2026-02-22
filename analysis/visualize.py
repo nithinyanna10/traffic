@@ -27,12 +27,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def plot_training_curves(metrics: list[dict], output_dir: str) -> None:
-    """Plot reward and success rate over episodes."""
-    episodes = [m["episode"] for m in metrics]
-    rewards = [m["total_reward"] for m in metrics]
-    success = [m["success_rate"] for m in metrics]
-    latency = [m["avg_latency"] for m in metrics]
-    cost = [m["avg_cost"] for m in metrics]
+    """Plot reward and success rate over episodes. Accepts total_reward or reward."""
+    episodes = [m.get("episode", i) for i, m in enumerate(metrics)]
+    rewards = [m.get("total_reward", m.get("reward", 0)) for m in metrics]
+    success = [m.get("success_rate", 0) for m in metrics]
+    latency = [m.get("avg_latency", 0) for m in metrics]
+    cost = [m.get("avg_cost", 0) for m in metrics]
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     fig.suptitle("RL-Traffic-Control: Training Curves", fontsize=14, fontweight="bold")
@@ -131,8 +131,13 @@ def main():
 
     if os.path.exists(args.metrics):
         with open(args.metrics) as f:
-            metrics = json.load(f)
-        plot_training_curves(metrics, args.output_dir)
+            data = json.load(f)
+        # Accept list of metrics or dict with "metrics" key (e.g. from GET /api/metrics)
+        metrics = data if isinstance(data, list) else data.get("metrics", data)
+        if metrics:
+            plot_training_curves(metrics, args.output_dir)
+        else:
+            print("No metrics list in file")
     else:
         print(f"No metrics file found at {args.metrics}")
 
