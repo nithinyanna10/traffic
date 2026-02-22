@@ -42,6 +42,9 @@ _training_active = False
 _training_thread: Optional[threading.Thread] = None
 _connected_clients: list[WebSocket] = []
 _training_metrics: list[dict] = []
+_replay_buffer: list[dict] = []
+_REPLAY_MAX = 500
+_stress_until_step: Optional[int] = None
 
 
 def update_state(state: dict) -> None:
@@ -112,6 +115,24 @@ async def root():
     if index_path.exists():
         return HTMLResponse(content=index_path.read_text())
     return HTMLResponse(content="<h1>Dashboard — static/index.html not found</h1>")
+
+
+@app.get("/metrics", response_class=HTMLResponse)
+async def metrics_page():
+    """Serve the metrics chart page (full-session curves from /api/metrics)."""
+    metrics_path = STATIC_DIR / "metrics.html"
+    if metrics_path.exists():
+        return HTMLResponse(content=metrics_path.read_text())
+    return HTMLResponse(content="<h1>metrics.html not found</h1>")
+
+
+@app.get("/replay", response_class=HTMLResponse)
+async def replay_page():
+    """Serve the replay viewer (last N state snapshots from /api/replay)."""
+    replay_path = STATIC_DIR / "replay.html"
+    if replay_path.exists():
+        return HTMLResponse(content=replay_path.read_text())
+    return HTMLResponse(content="<h1>replay.html not found</h1>")
 
 
 @app.websocket("/ws/state")
@@ -186,6 +207,24 @@ async def training_status():
     }
 
 
+@app.get("/api/replay")
+async def get_replay(last: int = 100):
+    """Return last N state snapshots for episode replay (step, episode, services, etc.)."""
+    global _replay_buffer
+    return {"replay": _replay_buffer[-last:] if _replay_buffer else []}
+
+
+@app.post("/api/stress")
+async def start_stress(duration_steps: int = 100):
+    """Enable temporary stress: high traffic for the next duration_steps (training loop must be running)."""
+    global _stress_until_step
+    import threading as T
+    state = get_state()
+    current_step = state.get("global_step", 0)
+    _stress_until_step = current_step + duration_steps
+    return {"status": "stress_scheduled", "until_step": _stress_until_step, "duration": duration_steps}
+
+
 def _run_training(
     agent_type: str,
     total_steps: int,
@@ -223,7 +262,8 @@ def _run_training(
             if curriculum_scheduler and step % 50 == 0:
                 progress = step / max(total_steps, 1)
                 config = curriculum_scheduler.get_config(progress)
-                unwrapped.set_traffic_rate(config.traffic_rate)
+                rate = 3.0 if (_stress_until_step is not None and step < _stress_until_step) else config.traffic_rate
+                unwrapped.set_traffic_rate(rate)
                 unwrapped.set_burst_config(config.burst_probability, config.burst_size)
                 unwrapped.set_failure_injection(config.failure_injection_prob)
 
@@ -240,6 +280,9 @@ def _run_training(
             state["last_reward"] = reward
             _append_last_event(state, action, reward, info)
             update_state(state)
+            _replay_buffer.append(state.copy())
+            if len(_replay_buffer) > _REPLAY_MAX:
+                _replay_buffer.pop(0)
 
             if terminated or truncated:
                 add_metrics({
@@ -297,6 +340,9 @@ def _run_training(
                 state["last_reward"] = reward
                 _append_last_event(state, action, reward, info)
                 update_state(state)
+                _replay_buffer.append(state.copy())
+                if len(_replay_buffer) > _REPLAY_MAX:
+                    _replay_buffer.pop(0)
                 if terminated or truncated:
                     add_metrics({
                         "episode": episode,
@@ -325,6 +371,9 @@ def _run_training(
                 state["last_reward"] = reward
                 _append_last_event(state, action, reward, info)
                 update_state(state)
+                _replay_buffer.append(state.copy())
+                if len(_replay_buffer) > _REPLAY_MAX:
+                    _replay_buffer.pop(0)
                 if terminated or truncated:
                     add_metrics({
                         "episode": episode,
