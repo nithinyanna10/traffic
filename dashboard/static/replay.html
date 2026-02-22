@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Replay — RL-Traffic-Control</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap');
+        :root { --bg: #05070d; --card: #0e1220; --border: rgba(0,212,255,0.2); --text: #e2e8f4; --muted: #64748b; --cyan: #00d4ff; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'JetBrains Mono', monospace; background: var(--bg); color: var(--text); padding: 24px; font-size: 12px; }
+        h1 { color: var(--cyan); margin-bottom: 8px; }
+        a { color: var(--cyan); }
+        .controls { margin-bottom: 16px; }
+        .controls button { padding: 6px 12px; margin-right: 8px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; color: var(--text); cursor: pointer; }
+        .replay-list { max-height: 70vh; overflow-y: auto; }
+        .replay-item { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 10px; margin-bottom: 8px; }
+        .replay-item .step { color: var(--cyan); }
+        .replay-item .episode { color: var(--muted); }
+    </style>
+</head>
+<body>
+    <h1>📜 Session Replay</h1>
+    <p>Last 100 state snapshots from the running training. <a href="/">← Dashboard</a></p>
+    <div class="controls">
+        <button onclick="loadReplay()">Refresh</button>
+    </div>
+    <div class="replay-list" id="replayList"></div>
+    <script>
+        async function loadReplay() {
+            try {
+                const r = await fetch('/api/replay?last=100');
+                const data = await r.json();
+                const replay = data.replay || [];
+                const el = document.getElementById('replayList');
+                el.innerHTML = replay.slice().reverse().map((s, i) => {
+                    const step = s.global_step ?? '-';
+                    const ep = s.episode ?? '-';
+                    const alive = s.alive_services ?? '-';
+                    const sr = s.success_rate != null ? (s.success_rate * 100).toFixed(1) + '%' : '-';
+                    return `<div class="replay-item"><span class="step">Step ${step}</span> <span class="episode">Ep ${ep}</span> | Alive: ${alive} | Success: ${sr}</div>`;
+                }).join('') || '<div class="replay-item">No replay data. Start training from the dashboard.</div>';
+            } catch (e) { document.getElementById('replayList').innerHTML = '<div class="replay-item">Error loading replay.</div>'; }
+        }
+        loadReplay();
+        setInterval(loadReplay, 3000);
+    </script>
+</body>
+</html>
