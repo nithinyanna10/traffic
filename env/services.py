@@ -72,6 +72,13 @@ class BaseService(ABC):
         """Subclass hook for per-step updates."""
         pass
 
+    def force_fail(self) -> None:
+        """Force this service to fail (e.g. for curriculum failure injection)."""
+        self.state.is_alive = False
+        self.state.health = 0.0
+        if hasattr(self, "_cooldown_remaining"):
+            self._cooldown_remaining = getattr(self, "COOLDOWN_STEPS", 10)
+
     def process(self, request: Request, step: int) -> ServiceResponse:
         """Process a request. Returns ServiceResponse."""
         response = self._handle_request(request, step)
