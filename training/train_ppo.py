@@ -43,10 +43,14 @@ class CurriculumCallback(BaseCallback):
         try:
             unwrapped = self.training_env.envs[0].unwrapped
             unwrapped.set_traffic_rate(config.traffic_rate)
+            unwrapped.set_burst_config(config.burst_probability, config.burst_size)
+            unwrapped.set_failure_injection(config.failure_injection_prob)
         except (AttributeError, IndexError):
             pass
         if self.num_timesteps % 10_000 == 0:
             self.logger.record("curriculum/traffic_rate", config.traffic_rate)
+            self.logger.record("curriculum/burst_prob", config.burst_probability)
+            self.logger.record("curriculum/failure_injection", config.failure_injection_prob)
             self.logger.record("curriculum/progress", progress)
         return True
 
