@@ -88,6 +88,11 @@ class MicroserviceRoutingEnv(gym.Env):
         self._delayed_queue: list[Request] = []
         self._last_response: Optional[ServiceResponse] = None
 
+        # Curriculum: burst and failure injection
+        self._burst_probability = 0.0
+        self._burst_size = 3
+        self._failure_injection_prob = 0.0
+
         # Snapshot for dashboard streaming
         self.last_step_info: dict = {}
 
@@ -139,6 +144,13 @@ class MicroserviceRoutingEnv(gym.Env):
         # Tick all services (drains queues, updates cooldowns)
         for svc in self._services:
             svc.tick()
+
+        # Failure injection (curriculum)
+        if self._failure_injection_prob > 0 and self.np_random.random() < self._failure_injection_prob:
+            alive_idx = [i for i, s in enumerate(self._services) if s.state.is_alive]
+            if alive_idx:
+                idx = int(self.np_random.integers(0, len(alive_idx)))
+                self._services[alive_idx[idx]].force_fail()
 
         # --- Process action ---
         if action <= 4:
@@ -233,6 +245,11 @@ class MicroserviceRoutingEnv(gym.Env):
         failed_count = sum(1 for s in self._services if not s.state.is_alive or s.state.health < 0.1)
         system_collapsed = failed_count >= 3
         truncated = self._step_count >= self.MAX_STEPS
+
+        # Burst: maybe add extra requests to delayed queue (curriculum)
+        burst = self._req_gen.maybe_get_burst()
+        if burst:
+            self._delayed_queue.extend(burst)
 
         # Generate next request
         if self._delayed_queue:
@@ -347,6 +364,16 @@ class MicroserviceRoutingEnv(gym.Env):
         """Used by curriculum scheduler to increase difficulty."""
         self._traffic_rate = rate
         self._req_gen.set_traffic_rate(rate)
+
+    def set_burst_config(self, probability: float, size: int) -> None:
+        """Set burst probability and size (curriculum)."""
+        self._burst_probability = probability
+        self._burst_size = max(1, size)
+        self._req_gen.set_burst_config(probability, size)
+
+    def set_failure_injection(self, probability: float) -> None:
+        """Set probability of forcing a random service to fail each step (curriculum)."""
+        self._failure_injection_prob = max(0.0, min(1.0, probability))
 
     def get_state_snapshot(self) -> dict:
         """Full state snapshot for dashboard streaming."""
