@@ -3,56 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RL-Traffic-Control Dashboard</title>
+    <title>RL-Traffic-Control — Ops</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
         :root {
-            --bg-primary: #0a0e1a;
-            --bg-secondary: #111827;
-            --bg-card: #1a2234;
-            --bg-card-hover: #1f2a40;
-            --border: #2a3a55;
-            --text-primary: #e8ecf4;
-            --text-secondary: #8892a8;
-            --text-muted: #5a6478;
-            --accent-green: #22d67a;
-            --accent-yellow: #f5a623;
-            --accent-red: #ef4444;
-            --accent-blue: #3b82f6;
-            --accent-purple: #8b5cf6;
-            --accent-cyan: #06b6d4;
-            --glow-green: rgba(34, 214, 122, 0.3);
-            --glow-red: rgba(239, 68, 68, 0.3);
-            --glow-yellow: rgba(245, 166, 35, 0.3);
+            --bg-primary: #05070d;
+            --bg-secondary: #0c0f18;
+            --bg-card: rgba(12, 16, 28, 0.85);
+            --bg-card-solid: #0e1220;
+            --border: rgba(0, 212, 255, 0.15);
+            --border-bright: rgba(0, 212, 255, 0.4);
+            --text-primary: #e2e8f4;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-green: #00ff88;
+            --accent-yellow: #ffd93d;
+            --accent-red: #ff4757;
+            --accent-blue: #0ea5e9;
+            --accent-purple: #a855f7;
+            --accent-cyan: #00d4ff;
+            --accent-magenta: #f472b6;
+            --glow-cyan: rgba(0, 212, 255, 0.25);
+            --glow-green: rgba(0, 255, 136, 0.3);
+            --glow-red: rgba(255, 71, 87, 0.4);
+            --glow-purple: rgba(168, 85, 247, 0.25);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'Inter', -apple-system, sans-serif;
+            font-family: 'Syne', -apple-system, sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
             min-height: 100vh;
             overflow-x: hidden;
         }
 
-        /* Header */
+        /* Animated grid background */
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+            background-size: 32px 32px;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .bg-glow {
+            position: fixed;
+            width: 120%;
+            height: 60%;
+            top: -20%;
+            left: -10%;
+            background: radial-gradient(ellipse at 50% 0%, rgba(0, 212, 255, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .app { position: relative; z-index: 1; min-height: 100vh; }
+
+        /* Header — glass bar */
         .header {
-            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-card));
+            background: rgba(12, 16, 28, 0.7);
+            backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--border);
-            padding: 16px 24px;
+            padding: 14px 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            box-shadow: 0 0 40px rgba(0, 212, 255, 0.05);
         }
         .header h1 {
-            font-size: 18px;
-            font-weight: 600;
-            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-magenta));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            letter-spacing: -0.3px;
+            text-shadow: 0 0 60px var(--glow-cyan);
         }
         .header-status {
             display: flex;
@@ -60,18 +90,22 @@
             gap: 12px;
         }
         .status-dot {
-            width: 8px;
-            height: 8px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
             background: var(--accent-red);
+            box-shadow: 0 0 12px var(--accent-red);
             animation: pulse-dot 2s infinite;
         }
-        .status-dot.active { background: var(--accent-green); }
-        .status-text { font-size: 13px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
-
+        .status-dot.active {
+            background: var(--accent-green);
+            box-shadow: 0 0 16px var(--accent-green);
+        }
+        .status-text { font-size: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 1px; }
+        .key-hint { font-size: 10px; color: var(--text-muted); margin-left: 16px; }
         @keyframes pulse-dot {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.1); }
         }
 
         /* Controls */
@@ -79,192 +113,324 @@
             padding: 12px 24px;
             display: flex;
             gap: 10px;
-            background: var(--bg-secondary);
+            background: rgba(12, 16, 28, 0.5);
             border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
         }
         .btn {
-            padding: 8px 20px;
+            padding: 10px 22px;
             border: 1px solid var(--border);
             border-radius: 8px;
             background: var(--bg-card);
             color: var(--text-primary);
-            font-family: 'Inter', sans-serif;
+            font-family: 'Syne', sans-serif;
             font-size: 13px;
-            font-weight: 500;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
         }
-        .btn:hover { background: var(--bg-card-hover); border-color: var(--accent-blue); }
-        .btn.primary { background: var(--accent-blue); border-color: var(--accent-blue); }
-        .btn.primary:hover { background: #2563eb; }
-        .btn.danger { border-color: var(--accent-red); color: var(--accent-red); }
-        .btn.danger:hover { background: rgba(239, 68, 68, 0.1); }
-
-        /* Grid layout */
-        .dashboard {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-template-rows: auto auto;
-            gap: 16px;
-            padding: 16px 24px;
+        .btn:hover {
+            background: rgba(0, 212, 255, 0.08);
+            border-color: var(--border-bright);
+            box-shadow: 0 0 20px var(--glow-cyan);
         }
+        .btn.primary {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            border: none;
+            color: #05070d;
+        }
+        .btn.primary:hover { box-shadow: 0 0 24px var(--glow-cyan); filter: brightness(1.1); }
+        .btn.danger { border-color: var(--accent-red); color: var(--accent-red); }
+        .btn.danger:hover { background: rgba(255, 71, 87, 0.12); box-shadow: 0 0 16px var(--glow-red); }
+        .controls-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .controls-row label { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+        .controls-row input[type="number"] { width: 100px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-family: 'JetBrains Mono', monospace; }
+        .controls-row input[type="text"] { width: 180px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+        .panel-header-actions { display: flex; gap: 8px; }
+        .panel-header-actions .btn { padding: 4px 10px; font-size: 11px; }
 
-        .panel {
+        /* Stats row — with sparkline area */
+        .stats-row {
+            display: flex;
+            gap: 12px;
+            padding: 16px 24px;
+            flex-wrap: wrap;
+        }
+        .stat-card {
+            flex: 1;
+            min-width: 120px;
             background: var(--bg-card);
+            backdrop-filter: blur(8px);
             border: 1px solid var(--border);
             border-radius: 12px;
+            padding: 14px 16px;
+            position: relative;
             overflow: hidden;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .stat-card:hover { border-color: var(--border-bright); box-shadow: 0 0 24px rgba(0, 212, 255, 0.06); }
+        .stat-card .sparkline {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 28px;
+            opacity: 0.5;
+        }
+        .stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+        .stat-value { font-size: 22px; font-weight: 800; font-family: 'JetBrains Mono', monospace; letter-spacing: -0.5px; }
+        .stat-value.green { color: var(--accent-green); text-shadow: 0 0 20px var(--glow-green); }
+        .stat-value.yellow { color: var(--accent-yellow); }
+        .stat-value.red { color: var(--accent-red); text-shadow: 0 0 16px var(--glow-red); }
+        .stat-value.blue { color: var(--accent-cyan); }
+        .stat-value.purple { color: var(--accent-purple); }
+
+        /* SLA Gauge */
+        .sla-gauge-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .sla-gauge {
+            position: relative;
+            width: 140px;
+            height: 140px;
+        }
+        .sla-gauge canvas { display: block; width: 100%; height: 100%; }
+        .sla-gauge-value {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* Dashboard grid — 3 columns for more layout */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            grid-template-rows: auto auto auto;
+            gap: 16px;
+            padding: 0 24px 24px;
+        }
+        .panel {
+            background: var(--bg-card);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .panel:hover { border-color: var(--border-bright); box-shadow: 0 0 30px rgba(0, 212, 255, 0.04); }
+        .panel.danger-mode { animation: panel-pulse 1.5s ease-in-out infinite; border-color: rgba(255, 71, 87, 0.5); }
+        @keyframes panel-pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 71, 87, 0.1); }
+            50% { box-shadow: 0 0 40px rgba(255, 71, 87, 0.2); }
         }
         .panel-header {
-            padding: 12px 16px;
+            padding: 12px 18px;
             border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
         .panel-title {
-            font-size: 13px;
-            font-weight: 600;
+            font-size: 11px;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 1.2px;
             color: var(--text-secondary);
         }
         .panel-body { padding: 16px; }
         .panel.full-width { grid-column: span 2; }
 
-        /* Cluster map canvas */
-        #clusterCanvas {
-            width: 100%;
-            height: 350px;
-            display: block;
-        }
+        #clusterCanvas { width: 100%; height: 380px; display: block; }
+        #heatmapCanvas { width: 100%; height: 200px; display: block; }
+        #timeSeriesCanvas { width: 100%; height: 260px; display: block; }
 
         /* Queue bars */
-        .queue-bars { display: flex; gap: 12px; align-items: flex-end; height: 180px; padding: 0 8px; }
+        .queue-bars { display: flex; gap: 10px; align-items: flex-end; height: 180px; padding: 0 8px; }
         .queue-bar-group { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-        .queue-bar-container { width: 100%; height: 150px; background: var(--bg-secondary); border-radius: 6px; position: relative; overflow: hidden; }
+        .queue-bar-container {
+            width: 100%; height: 150px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
         .queue-bar {
             position: absolute; bottom: 0; width: 100%;
-            border-radius: 6px 6px 0 0;
-            transition: height 0.3s ease, background 0.3s ease;
+            border-radius: 8px 8px 0 0;
+            transition: height 0.35s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s;
         }
-        .queue-label { font-size: 10px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; text-align: center; }
-        .queue-value { font-size: 11px; color: var(--text-primary); font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .queue-label { font-size: 9px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; text-align: center; text-transform: uppercase; }
+        .queue-value { font-size: 12px; color: var(--text-primary); font-weight: 700; font-family: 'JetBrains Mono', monospace; }
 
-        /* Heatmap */
-        #heatmapCanvas {
-            width: 100%;
-            height: 200px;
-            display: block;
+        /* Event ticker */
+        .event-ticker {
+            height: 160px;
+            overflow: hidden;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            padding: 8px 0;
         }
-
-        /* Time series */
-        #timeSeriesCanvas {
-            width: 100%;
-            height: 250px;
-            display: block;
-        }
-
-        /* Stats row */
-        .stats-row {
+        .event-ticker-inner {
             display: flex;
-            gap: 12px;
-            padding: 0 24px 16px;
+            flex-direction: column-reverse;
+            gap: 4px;
+            max-height: 100%;
+            overflow-y: auto;
         }
-        .stat-card {
-            flex: 1;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 14px 16px;
+        .event-ticker-inner::-webkit-scrollbar { width: 6px; }
+        .event-ticker-inner::-webkit-scrollbar-track { background: var(--bg-secondary); border-radius: 3px; }
+        .event-ticker-inner::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+        .event-line {
+            padding: 4px 12px;
+            border-left: 3px solid var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.05);
+            border-radius: 0 4px 4px 0;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            animation: event-in 0.3s ease;
         }
-        .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-        .stat-value { font-size: 22px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
-        .stat-value.green { color: var(--accent-green); }
-        .stat-value.yellow { color: var(--accent-yellow); }
-        .stat-value.red { color: var(--accent-red); }
-        .stat-value.blue { color: var(--accent-blue); }
-        .stat-value.purple { color: var(--accent-purple); }
+        @keyframes event-in {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .event-line.cascade { border-left-color: var(--accent-red); background: rgba(255, 71, 87, 0.08); color: var(--accent-red); }
+        .event-line.fail { border-left-color: var(--accent-yellow); background: rgba(255, 217, 61, 0.06); }
+        .event-line.reward { border-left-color: var(--accent-green); background: rgba(0, 255, 136, 0.06); }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>⚡ RL-Traffic-Control</h1>
-        <div class="header-status">
-            <div class="status-dot" id="statusDot"></div>
-            <span class="status-text" id="statusText">Disconnected</span>
-        </div>
-    </div>
-
-    <div class="controls">
-        <button class="btn primary" onclick="startTraining('ppo')">▶ Train PPO</button>
-        <button class="btn" onclick="startTraining('round_robin')">Round Robin</button>
-        <button class="btn" onclick="startTraining('least_connections')">Least Conn.</button>
-        <button class="btn" onclick="startTraining('latency_heuristic')">Latency Heur.</button>
-        <button class="btn danger" onclick="stopTraining()">■ Stop</button>
-    </div>
-
-    <div class="stats-row">
-        <div class="stat-card">
-            <div class="stat-label">Success Rate</div>
-            <div class="stat-value green" id="statSuccessRate">—</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">Avg Latency</div>
-            <div class="stat-value yellow" id="statLatency">—</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">Avg Cost</div>
-            <div class="stat-value purple" id="statCost">—</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">Alive Services</div>
-            <div class="stat-value blue" id="statAlive">—</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">Episode</div>
-            <div class="stat-value" id="statEpisode">—</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">Ep. Reward</div>
-            <div class="stat-value green" id="statReward">—</div>
-        </div>
-    </div>
-
-    <div class="dashboard">
-        <div class="panel">
-            <div class="panel-header">
-                <span class="panel-title">🗺 Live Cluster Map</span>
-            </div>
-            <div class="panel-body">
-                <canvas id="clusterCanvas"></canvas>
+    <div class="bg-grid"></div>
+    <div class="bg-glow"></div>
+    <div class="app">
+        <div class="header">
+            <h1>⚡ RL-Traffic-Control</h1>
+            <div class="header-status">
+                <div class="status-dot" id="statusDot"></div>
+                <span class="status-text" id="statusText">Disconnected</span>
+                <span class="key-hint">Space: PPO · S: Stop</span>
             </div>
         </div>
 
-        <div class="panel">
-            <div class="panel-header">
-                <span class="panel-title">📊 Queue Sizes</span>
-            </div>
-            <div class="panel-body">
-                <div class="queue-bars" id="queueBars"></div>
-            </div>
-        </div>
-
-        <div class="panel">
-            <div class="panel-header">
-                <span class="panel-title">🎯 Policy Heatmap</span>
-            </div>
-            <div class="panel-body">
-                <canvas id="heatmapCanvas"></canvas>
+        <div class="controls">
+            <div class="controls-row">
+                <label>Steps <input type="number" id="stepsInput" value="50000" min="1000" max="1000000" step="10000"></label>
+                <label><input type="checkbox" id="curriculumCheck" checked> Curriculum</label>
+                <label>Checkpoint <input type="text" id="checkpointInput" placeholder="optional path"></label>
+                <button class="btn primary" onclick="startTraining('ppo')">▶ Train PPO</button>
+                <button class="btn" onclick="startTraining('round_robin')">Round Robin</button>
+                <button class="btn" onclick="startTraining('least_connections')">Least Conn.</button>
+                <button class="btn" onclick="startTraining('latency_heuristic')">Latency Heur.</button>
+                <button class="btn danger" onclick="stopTraining()">■ Stop</button>
             </div>
         </div>
 
-        <div class="panel">
-            <div class="panel-header">
-                <span class="panel-title">📈 Time Series</span>
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-label">Success Rate</div>
+                <div class="stat-value green" id="statSuccessRate">—</div>
+                <canvas class="sparkline" id="sparkSuccess" width="200" height="28"></canvas>
             </div>
-            <div class="panel-body">
-                <canvas id="timeSeriesCanvas"></canvas>
+            <div class="stat-card">
+                <div class="stat-label">Avg Latency</div>
+                <div class="stat-value yellow" id="statLatency">—</div>
+                <canvas class="sparkline" id="sparkLatency" width="200" height="28"></canvas>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Cost</div>
+                <div class="stat-value purple" id="statCost">—</div>
+                <canvas class="sparkline" id="sparkCost" width="200" height="28"></canvas>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Alive</div>
+                <div class="stat-value blue" id="statAlive">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Episode</div>
+                <div class="stat-value" id="statEpisode">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Ep. Reward</div>
+                <div class="stat-value green" id="statReward">—</div>
+                <canvas class="sparkline" id="sparkReward" width="200" height="28"></canvas>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">SLA</div>
+                <div class="sla-gauge-wrap">
+                    <div class="sla-gauge">
+                        <canvas id="slaGaugeCanvas"></canvas>
+                        <div class="sla-gauge-value" id="slaGaugeValue">—</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard">
+            <div class="panel" id="clusterPanel">
+                <div class="panel-header">
+                    <span class="panel-title">🗺 Live Cluster Map</span>
+                    <div class="panel-header-actions">
+                        <button class="btn" onclick="toggleClusterFullscreen()" title="Fullscreen">⛶ Fullscreen</button>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <canvas id="clusterCanvas"></canvas>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">📊 Queue Sizes</span>
+                </div>
+                <div class="panel-body">
+                    <div class="queue-bars" id="queueBars"></div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">🎯 Policy Heatmap</span>
+                    <div class="panel-header-actions">
+                        <button class="btn" onclick="exportChartPNG('heatmapCanvas', 'heatmap.png')" title="Download PNG">↓ Export PNG</button>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <canvas id="heatmapCanvas"></canvas>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">📜 Live Event Log</span>
+                </div>
+                <div class="panel-body">
+                    <div class="event-ticker">
+                        <div class="event-ticker-inner" id="eventTicker"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel full-width">
+                <div class="panel-header">
+                    <span class="panel-title">📈 Time Series</span>
+                    <div class="panel-header-actions">
+                        <button class="btn" onclick="exportChartPNG('timeSeriesCanvas', 'timeseries.png')" title="Download PNG">↓ Export PNG</button>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <canvas id="timeSeriesCanvas"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -275,15 +441,25 @@
     // ======================================================================
     let ws = null;
     let connected = false;
-    const MAX_HISTORY = 300;
+    const MAX_HISTORY = 400;
     const history = { latency: [], cost: [], reward: [], successRate: [] };
+    const sparkHistory = { successRate: [], latency: [], cost: [], reward: [] };
     const particles = [];
+    const particleTrails = [];
     const cascadePulses = [];
+    const flowLineOffset = 0;
     let actionCounts = new Array(9).fill(0);
     let totalActions = 0;
+    let lastActionHighlight = -1;
+    let lastActionHighlightTime = 0;
+    const EVENT_MAX = 25;
+    const events = [];
+    let prevAliveServices = 5;
+    let dangerMode = false;
+    let _lastEventStep = -1;
 
     const SERVICE_NAMES = ['Fast GPU', 'Cheap CPU', 'Flaky Spot', 'Serverless', 'Queue Cluster'];
-    const SERVICE_COLORS = ['#3b82f6', '#22d67a', '#f5a623', '#8b5cf6', '#06b6d4'];
+    const SERVICE_COLORS = ['#0ea5e9', '#00ff88', '#ffd93d', '#a855f7', '#00d4ff'];
 
     // ======================================================================
     // WEBSOCKET
@@ -313,50 +489,145 @@
         };
     }
 
+    function pushEvent(text, type = '') {
+        events.unshift({ t: Date.now(), text, type });
+        if (events.length > EVENT_MAX) events.pop();
+        const el = document.getElementById('eventTicker');
+        const line = document.createElement('div');
+        line.className = 'event-line' + (type ? ' ' + type : '');
+        line.textContent = '[' + new Date().toLocaleTimeString() + '] ' + text;
+        el.insertBefore(line, el.firstChild);
+        while (el.children.length > EVENT_MAX) el.removeChild(el.lastChild);
+    }
+
     function onStateUpdate(data) {
         updateStats(data);
         updateQueueBars(data);
         pushHistory(data);
+        updateSparkHistory(data);
         updateClusterMap(data);
+        updateSlaGauge(data.success_rate);
+        dangerMode = (data.alive_services !== undefined && data.alive_services < 3) || (data.success_rate !== undefined && data.success_rate < 0.5);
+        document.getElementById('clusterPanel').classList.toggle('danger-mode', dangerMode);
 
-        // Track action distribution
+        if (data.events && Array.isArray(data.events)) {
+            data.events.forEach(ev => pushEvent(ev.text || ev, ev.type || ''));
+        }
+
         if (data.current_action !== undefined && data.current_action !== null) {
             const a = data.current_action;
             if (a >= 0 && a < 9) {
                 actionCounts[a]++;
                 totalActions++;
+                lastActionHighlight = a;
+                lastActionHighlightTime = Date.now();
             }
-            // Spawn particle for routing actions
             if (a >= 0 && a <= 4) {
                 spawnParticle(a, data.services ? data.services[a] : null);
             }
         }
-        // Cascade pulse
+
         if (data.services) {
+            const aliveNow = data.services.filter(s => s.alive).length;
+            if (aliveNow < prevAliveServices) {
+                data.services.forEach((s, i) => {
+                    if (!s.alive && prevAliveServices === 5) pushEvent('Service down: ' + (s.name || SERVICE_NAMES[i]), 'fail');
+                });
+            }
+            prevAliveServices = aliveNow;
             data.services.forEach((s, i) => {
-                if (!s.alive || s.health < 0.1) {
-                    spawnCascadePulse(i);
-                }
+                if (!s.alive || s.health < 0.1) spawnCascadePulse(i);
             });
+        }
+
+        if (data.last_event && data.last_event.text) {
+            if (data.global_step !== undefined && data.global_step !== _lastEventStep) {
+                _lastEventStep = data.global_step;
+                pushEvent(data.last_event.text, data.last_event.type || '');
+            }
         }
     }
 
     // ======================================================================
-    // STATS PANEL
+    // STATS + SPARKLINES
     // ======================================================================
     function updateStats(data) {
         const sr = data.success_rate;
-        const el = (id, val) => document.getElementById(id).textContent = val;
+        const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
         el('statSuccessRate', sr !== undefined ? (sr * 100).toFixed(1) + '%' : '—');
-        el('statLatency', data.avg_latency !== undefined ? data.avg_latency.toFixed(1) + 'ms' : '—');
+        el('statLatency', data.avg_latency !== undefined ? data.avg_latency.toFixed(0) + 'ms' : '—');
         el('statCost', data.avg_cost !== undefined ? '$' + data.avg_cost.toFixed(4) : '—');
         el('statAlive', data.alive_services !== undefined ? data.alive_services + '/5' : '—');
         el('statEpisode', data.episode !== undefined ? data.episode : '—');
         el('statReward', data.episode_reward !== undefined ? data.episode_reward.toFixed(1) : '—');
 
-        // Color success rate
         const srEl = document.getElementById('statSuccessRate');
-        srEl.className = 'stat-value ' + (sr > 0.8 ? 'green' : sr > 0.5 ? 'yellow' : 'red');
+        if (srEl) srEl.className = 'stat-value ' + (sr > 0.8 ? 'green' : sr > 0.5 ? 'yellow' : 'red');
+    }
+
+    function updateSparkHistory(data) {
+        if (data.success_rate !== undefined) sparkHistory.successRate.push(data.success_rate);
+        if (data.avg_latency !== undefined) sparkHistory.latency.push(data.avg_latency);
+        if (data.avg_cost !== undefined) sparkHistory.cost.push(data.avg_cost);
+        if (data.episode_reward !== undefined) sparkHistory.reward.push(data.episode_reward);
+        ['successRate', 'latency', 'cost', 'reward'].forEach(k => {
+            if (sparkHistory[k].length > 50) sparkHistory[k] = sparkHistory[k].slice(-50);
+        });
+    }
+
+    function drawSparkline(canvasId, key, color) {
+        const c = document.getElementById(canvasId);
+        if (!c || !sparkHistory[key].length) return;
+        const ctx = c.getContext('2d');
+        const w = c.width;
+        const h = c.height;
+        ctx.clearRect(0, 0, w, h);
+        const data = sparkHistory[key];
+        const max = Math.max(...data, 0.001);
+        const min = Math.min(...data, 0);
+        const range = max - min || 1;
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        data.forEach((v, i) => {
+            const x = (i / (data.length - 1)) * w;
+            const y = h - ((v - min) / range) * h;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+    }
+
+    // ======================================================================
+    // SLA GAUGE
+    // ======================================================================
+    function updateSlaGauge(successRate) {
+        const canvas = document.getElementById('slaGaugeCanvas');
+        const valueEl = document.getElementById('slaGaugeValue');
+        if (!canvas || !valueEl) return;
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const size = 140;
+        canvas.width = size * dpr;
+        canvas.height = size * dpr;
+        canvas.style.width = size + 'px';
+        canvas.style.height = size + 'px';
+        ctx.scale(dpr, dpr);
+        const cx = size / 2, cy = size / 2, r = 58;
+        ctx.clearRect(0, 0, size, size);
+        const sr = successRate != null ? Math.min(1, Math.max(0, successRate)) : 0;
+        valueEl.textContent = successRate != null ? (sr * 100).toFixed(0) + '%' : '—';
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0,212,255,0.15)';
+        ctx.lineWidth = 10;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + sr * Math.PI * 2);
+        ctx.strokeStyle = sr > 0.8 ? '#00ff88' : sr > 0.5 ? '#ffd93d' : '#ff4757';
+        ctx.lineWidth = 10;
+        ctx.lineCap = 'round';
+        ctx.stroke();
     }
 
     // ======================================================================
@@ -365,7 +636,6 @@
     function updateQueueBars(data) {
         const container = document.getElementById('queueBars');
         if (!data.services) return;
-
         if (container.children.length === 0) {
             data.services.forEach((s, i) => {
                 const group = document.createElement('div');
@@ -380,15 +650,13 @@
                 container.appendChild(group);
             });
         }
-
         data.services.forEach((s, i) => {
-            const bar = document.getElementById(`qb${i}`);
-            const val = document.getElementById(`qv${i}`);
+            const bar = document.getElementById('qb' + i);
+            const val = document.getElementById('qv' + i);
+            if (!bar || !val) return;
             const pct = Math.min(s.queue / 25, 1) * 100;
             bar.style.height = pct + '%';
-
-            const color = s.health > 0.7 ? SERVICE_COLORS[i] :
-                          s.health > 0.3 ? 'var(--accent-yellow)' : 'var(--accent-red)';
+            const color = s.health > 0.7 ? SERVICE_COLORS[i] : s.health > 0.3 ? 'var(--accent-yellow)' : 'var(--accent-red)';
             bar.style.background = `linear-gradient(to top, ${color}, ${color}88)`;
             val.textContent = s.queue;
         });
@@ -402,27 +670,27 @@
         if (data.avg_cost !== undefined) history.cost.push(data.avg_cost);
         if (data.episode_reward !== undefined) history.reward.push(data.episode_reward);
         if (data.success_rate !== undefined) history.successRate.push(data.success_rate);
-
         for (const k in history) {
             if (history[k].length > MAX_HISTORY) history[k] = history[k].slice(-MAX_HISTORY);
         }
     }
 
     // ======================================================================
-    // CLUSTER MAP (Canvas)
+    // CLUSTER MAP — flow lines, trails, pulse
     // ======================================================================
     const clusterCanvas = document.getElementById('clusterCanvas');
     const clusterCtx = clusterCanvas.getContext('2d');
-
-    const NODE_RADIUS = 32;
+    const NODE_RADIUS = 36;
     let nodePositions = [];
     let lastServices = null;
+    let flowPhase = 0;
 
     function initNodePositions() {
         const w = clusterCanvas.width;
         const h = clusterCanvas.height;
+        if (!w || !h) return;
         const cx = w / 2, cy = h / 2;
-        const rx = w * 0.32, ry = h * 0.34;
+        const rx = w * 0.34, ry = h * 0.36;
         nodePositions = SERVICE_NAMES.map((_, i) => {
             const angle = (i / 5) * Math.PI * 2 - Math.PI / 2;
             return { x: cx + Math.cos(angle) * rx, y: cy + Math.sin(angle) * ry };
@@ -430,19 +698,21 @@
     }
 
     function spawnParticle(targetIdx, svc) {
-        const cx = clusterCanvas.width / 2;
-        const cy = clusterCanvas.height / 2;
+        const w = clusterCanvas.width;
+        const h = clusterCanvas.height;
+        const cx = w / 2, cy = h / 2;
         if (!nodePositions.length) return;
         const target = nodePositions[targetIdx];
         particles.push({
             x: cx, y: cy,
             tx: target.x, ty: target.y,
             progress: 0,
-            speed: 0.03 + Math.random() * 0.02,
-            color: svc && svc.alive ? SERVICE_COLORS[targetIdx] : '#ef4444',
+            speed: 0.025 + Math.random() * 0.02,
+            color: svc && svc.alive ? SERVICE_COLORS[targetIdx] : '#ff4757',
             alive: true,
+            trail: [],
         });
-        if (particles.length > 60) particles.splice(0, 10);
+        if (particles.length > 80) particles.splice(0, 15);
     }
 
     function spawnCascadePulse(idx) {
@@ -451,10 +721,10 @@
         cascadePulses.push({
             x: pos.x, y: pos.y,
             radius: NODE_RADIUS,
-            maxRadius: NODE_RADIUS * 4,
-            alpha: 0.8,
+            maxRadius: NODE_RADIUS * 5,
+            alpha: 0.9,
         });
-        if (cascadePulses.length > 20) cascadePulses.splice(0, 5);
+        if (cascadePulses.length > 25) cascadePulses.splice(0, 8);
     }
 
     function updateClusterMap(data) {
@@ -465,113 +735,131 @@
         const w = clusterCanvas.width;
         const h = clusterCanvas.height;
         clusterCtx.clearRect(0, 0, w, h);
-
         if (!nodePositions.length) return;
 
-        // Draw connections (lines between nodes)
-        clusterCtx.strokeStyle = 'rgba(42, 58, 85, 0.5)';
-        clusterCtx.lineWidth = 1;
+        flowPhase += 0.02;
+
+        // Flowing connection lines (dashed animation)
         for (let i = 0; i < 5; i++) {
             for (let j = i + 1; j < 5; j++) {
+                const p1 = nodePositions[i], p2 = nodePositions[j];
+                const dx = p2.x - p1.x, dy = p2.y - p1.y;
+                const len = Math.hypot(dx, dy);
+                const nx = dx / len, ny = dy / len;
+                clusterCtx.strokeStyle = 'rgba(0, 212, 255, 0.12)';
+                clusterCtx.lineWidth = 1;
+                clusterCtx.setLineDash([8, 12]);
                 clusterCtx.beginPath();
-                clusterCtx.moveTo(nodePositions[i].x, nodePositions[i].y);
-                clusterCtx.lineTo(nodePositions[j].x, nodePositions[j].y);
+                clusterCtx.moveTo(p1.x, p1.y);
+                clusterCtx.lineTo(p2.x, p2.y);
+                clusterCtx.stroke();
+                clusterCtx.setLineDash([]);
+                const dashOffset = (flowPhase * 80) % 20;
+                clusterCtx.strokeStyle = 'rgba(0, 212, 255, 0.35)';
+                clusterCtx.lineWidth = 2;
+                clusterCtx.beginPath();
+                for (let t = dashOffset / len; t < 1; t += 20 / len) {
+                    const x = p1.x + dx * t, y = p1.y + dy * t;
+                    if (t === dashOffset / len) clusterCtx.moveTo(x, y);
+                    else clusterCtx.lineTo(x, y);
+                }
                 clusterCtx.stroke();
             }
         }
 
-        // Draw center (load balancer)
         const cx = w / 2, cy = h / 2;
         clusterCtx.beginPath();
-        clusterCtx.arc(cx, cy, 16, 0, Math.PI * 2);
-        clusterCtx.fillStyle = 'var(--bg-secondary)';
+        clusterCtx.arc(cx, cy, 18, 0, Math.PI * 2);
+        clusterCtx.fillStyle = 'rgba(12, 16, 28, 0.95)';
         clusterCtx.fill();
-        clusterCtx.strokeStyle = '#3b82f6';
+        clusterCtx.strokeStyle = '#00d4ff';
         clusterCtx.lineWidth = 2;
         clusterCtx.stroke();
-        clusterCtx.fillStyle = '#e8ecf4';
-        clusterCtx.font = '10px JetBrains Mono';
+        clusterCtx.fillStyle = '#e2e8f4';
+        clusterCtx.font = '11px JetBrains Mono';
         clusterCtx.textAlign = 'center';
         clusterCtx.textBaseline = 'middle';
         clusterCtx.fillText('LB', cx, cy);
 
-        // Draw cascade pulses
         for (let i = cascadePulses.length - 1; i >= 0; i--) {
             const p = cascadePulses[i];
-            p.radius += 2;
-            p.alpha -= 0.02;
+            p.radius += 2.5;
+            p.alpha -= 0.018;
             if (p.alpha <= 0) { cascadePulses.splice(i, 1); continue; }
             clusterCtx.beginPath();
             clusterCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-            clusterCtx.strokeStyle = `rgba(239, 68, 68, ${p.alpha})`;
+            clusterCtx.strokeStyle = `rgba(255, 71, 87, ${p.alpha})`;
             clusterCtx.lineWidth = 2;
             clusterCtx.stroke();
         }
 
-        // Draw particles
         for (let i = particles.length - 1; i >= 0; i--) {
             const p = particles[i];
+            p.trail.push({ x: p.x + (p.tx - p.x) * p.progress, y: p.y + (p.ty - p.y) * p.progress });
+            if (p.trail.length > 12) p.trail.shift();
             p.progress += p.speed;
             if (p.progress >= 1) { particles.splice(i, 1); continue; }
             const x = p.x + (p.tx - p.x) * p.progress;
             const y = p.y + (p.ty - p.y) * p.progress;
+            for (let ti = 0; ti < p.trail.length; ti++) {
+                const t = p.trail[ti];
+                clusterCtx.beginPath();
+                clusterCtx.arc(t.x, t.y, 2 + (ti / p.trail.length) * 2, 0, Math.PI * 2);
+                clusterCtx.fillStyle = p.color + Math.round(40 + (ti / p.trail.length) * 80).toString(16).padStart(2, '0');
+                clusterCtx.fill();
+            }
             clusterCtx.beginPath();
-            clusterCtx.arc(x, y, 4, 0, Math.PI * 2);
+            clusterCtx.arc(x, y, 5, 0, Math.PI * 2);
             clusterCtx.fillStyle = p.color;
             clusterCtx.fill();
-            // Glow
             clusterCtx.beginPath();
-            clusterCtx.arc(x, y, 8, 0, Math.PI * 2);
-            clusterCtx.fillStyle = p.color + '33';
+            clusterCtx.arc(x, y, 12, 0, Math.PI * 2);
+            clusterCtx.fillStyle = p.color + '22';
             clusterCtx.fill();
         }
 
-        // Draw nodes
+        const highlightAge = (Date.now() - lastActionHighlightTime) / 200;
+        const pulseAlpha = highlightAge < 1 ? 1 - highlightAge : 0;
+
         if (lastServices) {
             lastServices.forEach((s, i) => {
                 const pos = nodePositions[i];
                 const health = s.health;
-                const color = health > 0.7 ? SERVICE_COLORS[i] :
-                              health > 0.3 ? '#f5a623' : '#ef4444';
-                const glowColor = health > 0.7 ? SERVICE_COLORS[i] + '40' :
-                                  health > 0.3 ? 'rgba(245,166,35,0.25)' : 'rgba(239,68,68,0.3)';
+                const color = health > 0.7 ? SERVICE_COLORS[i] : health > 0.3 ? '#ffd93d' : '#ff4757';
+                const glowColor = health > 0.7 ? SERVICE_COLORS[i] + '35' : health > 0.3 ? 'rgba(255,217,61,0.2)' : 'rgba(255,71,87,0.35)';
+                const isHighlight = lastActionHighlight === i && pulseAlpha > 0;
 
-                // Glow
                 clusterCtx.beginPath();
-                clusterCtx.arc(pos.x, pos.y, NODE_RADIUS + 8, 0, Math.PI * 2);
-                clusterCtx.fillStyle = glowColor;
+                clusterCtx.arc(pos.x, pos.y, NODE_RADIUS + 10, 0, Math.PI * 2);
+                clusterCtx.fillStyle = isHighlight ? SERVICE_COLORS[i] + '40' : glowColor;
                 clusterCtx.fill();
 
-                // Node circle
                 clusterCtx.beginPath();
                 clusterCtx.arc(pos.x, pos.y, NODE_RADIUS, 0, Math.PI * 2);
-                clusterCtx.fillStyle = '#1a2234';
+                clusterCtx.fillStyle = '#0e1220';
                 clusterCtx.fill();
                 clusterCtx.strokeStyle = color;
-                clusterCtx.lineWidth = 3;
+                clusterCtx.lineWidth = isHighlight ? 4 : 3;
                 clusterCtx.stroke();
 
-                // Health arc
                 clusterCtx.beginPath();
-                clusterCtx.arc(pos.x, pos.y, NODE_RADIUS - 4, -Math.PI / 2, -Math.PI / 2 + health * Math.PI * 2);
+                clusterCtx.arc(pos.x, pos.y, NODE_RADIUS - 5, -Math.PI / 2, -Math.PI / 2 + health * Math.PI * 2);
                 clusterCtx.strokeStyle = color;
                 clusterCtx.lineWidth = 3;
                 clusterCtx.stroke();
 
-                // Label
-                clusterCtx.fillStyle = '#e8ecf4';
+                clusterCtx.fillStyle = '#e2e8f4';
                 clusterCtx.font = '9px JetBrains Mono';
                 clusterCtx.textAlign = 'center';
-                clusterCtx.fillText(SERVICE_NAMES[i], pos.x, pos.y - 4);
+                clusterCtx.fillText(SERVICE_NAMES[i], pos.x, pos.y - 6);
                 clusterCtx.fillStyle = color;
-                clusterCtx.font = '10px JetBrains Mono';
-                clusterCtx.fillText((health * 100).toFixed(0) + '%', pos.x, pos.y + 10);
+                clusterCtx.font = '11px JetBrains Mono';
+                clusterCtx.fillText((health * 100).toFixed(0) + '%', pos.x, pos.y + 12);
 
-                // Dead X
                 if (!s.alive) {
-                    clusterCtx.strokeStyle = '#ef4444';
+                    clusterCtx.strokeStyle = '#ff4757';
                     clusterCtx.lineWidth = 3;
-                    const d = 14;
+                    const d = 16;
                     clusterCtx.beginPath();
                     clusterCtx.moveTo(pos.x - d, pos.y - d);
                     clusterCtx.lineTo(pos.x + d, pos.y + d);
@@ -584,76 +872,60 @@
     }
 
     // ======================================================================
-    // POLICY HEATMAP (Canvas)
+    // POLICY HEATMAP
     // ======================================================================
     const heatmapCanvas = document.getElementById('heatmapCanvas');
     const heatmapCtx = heatmapCanvas.getContext('2d');
-
     const ACTION_NAMES = ['GPU', 'CPU', 'Spot', 'Srvls', 'Queue', 'Delay', 'Retry', 'Drop', 'Degrd'];
 
     function drawHeatmap() {
         const w = heatmapCanvas.width;
         const h = heatmapCanvas.height;
         heatmapCtx.clearRect(0, 0, w, h);
-
         if (totalActions === 0) {
-            heatmapCtx.fillStyle = '#5a6478';
-            heatmapCtx.font = '14px Inter';
+            heatmapCtx.fillStyle = '#64748b';
+            heatmapCtx.font = '14px Syne';
             heatmapCtx.textAlign = 'center';
             heatmapCtx.fillText('Waiting for data...', w / 2, h / 2);
             return;
         }
-
-        const padding = { top: 30, right: 20, bottom: 40, left: 20 };
+        const padding = { top: 28, right: 20, bottom: 40, left: 20 };
         const barW = (w - padding.left - padding.right) / 9;
         const maxPct = Math.max(...actionCounts.map(c => c / totalActions), 0.01);
-
+        const highlightAge = (Date.now() - lastActionHighlightTime) / 150;
         ACTION_NAMES.forEach((name, i) => {
             const pct = actionCounts[i] / totalActions;
             const barH = (pct / maxPct) * (h - padding.top - padding.bottom);
             const x = padding.left + i * barW;
             const y = h - padding.bottom - barH;
-
-            // Color based on action type
-            let color;
-            if (i < 5) color = SERVICE_COLORS[i];
-            else if (i === 5) color = '#8892a8';
-            else if (i === 6) color = '#f5a623';
-            else if (i === 7) color = '#ef4444';
-            else color = '#8b5cf6';
-
-            // Bar
+            let color = i < 5 ? SERVICE_COLORS[i] : i === 5 ? '#94a3b8' : i === 6 ? '#ffd93d' : i === 7 ? '#ff4757' : '#a855f7';
+            const isHighlight = lastActionHighlight === i && highlightAge < 1;
+            if (isHighlight) {
+                heatmapCtx.shadowColor = color;
+                heatmapCtx.shadowBlur = 12;
+            }
             const grad = heatmapCtx.createLinearGradient(x, y, x, h - padding.bottom);
             grad.addColorStop(0, color);
             grad.addColorStop(1, color + '44');
             heatmapCtx.fillStyle = grad;
             heatmapCtx.fillRect(x + 4, y, barW - 8, barH);
-
-            // Glow top
-            heatmapCtx.fillStyle = color + '33';
-            heatmapCtx.fillRect(x + 2, y - 2, barW - 4, 4);
-
-            // Percentage label
-            heatmapCtx.fillStyle = '#e8ecf4';
+            heatmapCtx.shadowBlur = 0;
+            heatmapCtx.fillStyle = '#e2e8f4';
             heatmapCtx.font = '10px JetBrains Mono';
             heatmapCtx.textAlign = 'center';
             heatmapCtx.fillText((pct * 100).toFixed(1) + '%', x + barW / 2, y - 8);
-
-            // Action name
-            heatmapCtx.fillStyle = '#8892a8';
+            heatmapCtx.fillStyle = '#64748b';
             heatmapCtx.font = '9px JetBrains Mono';
             heatmapCtx.fillText(name, x + barW / 2, h - padding.bottom + 16);
         });
-
-        // Title
-        heatmapCtx.fillStyle = '#8892a8';
-        heatmapCtx.font = '11px Inter';
+        heatmapCtx.fillStyle = '#94a3b8';
+        heatmapCtx.font = '11px Syne';
         heatmapCtx.textAlign = 'left';
-        heatmapCtx.fillText('Action Distribution (' + totalActions + ' total)', padding.left, 16);
+        heatmapCtx.fillText('Action distribution (' + totalActions + ')', padding.left, 14);
     }
 
     // ======================================================================
-    // TIME SERIES (Canvas)
+    // TIME SERIES
     // ======================================================================
     const tsCanvas = document.getElementById('timeSeriesCanvas');
     const tsCtx = tsCanvas.getContext('2d');
@@ -662,13 +934,10 @@
         const w = tsCanvas.width;
         const h = tsCanvas.height;
         tsCtx.clearRect(0, 0, w, h);
-
-        const pad = { top: 24, right: 16, bottom: 30, left: 50 };
+        const pad = { top: 28, right: 20, bottom: 32, left: 52 };
         const plotW = w - pad.left - pad.right;
         const plotH = h - pad.top - pad.bottom;
-
-        // Draw axes
-        tsCtx.strokeStyle = '#2a3a55';
+        tsCtx.strokeStyle = 'rgba(0,212,255,0.2)';
         tsCtx.lineWidth = 1;
         tsCtx.beginPath();
         tsCtx.moveTo(pad.left, pad.top);
@@ -677,32 +946,28 @@
         tsCtx.stroke();
 
         const series = [
-            { data: history.successRate, color: '#22d67a', label: 'Success %', scale: 1 },
-            { data: history.latency, color: '#f5a623', label: 'Latency', scale: null },
-            { data: history.cost, color: '#8b5cf6', label: 'Cost', scale: null },
+            { data: history.successRate, color: '#00ff88', label: 'Success %', scale: 1 },
+            { data: history.latency, color: '#ffd93d', label: 'Latency', scale: null },
+            { data: history.cost, color: '#a855f7', label: 'Cost', scale: null },
         ];
-
-        // Legend
         let lx = pad.left;
         series.forEach(s => {
             tsCtx.fillStyle = s.color;
-            tsCtx.fillRect(lx, 8, 12, 3);
-            tsCtx.fillStyle = '#8892a8';
-            tsCtx.font = '10px Inter';
+            tsCtx.fillRect(lx, 10, 14, 4);
+            tsCtx.fillStyle = '#94a3b8';
+            tsCtx.font = '11px Syne';
             tsCtx.textAlign = 'left';
-            tsCtx.fillText(s.label, lx + 16, 13);
-            lx += tsCtx.measureText(s.label).width + 36;
+            tsCtx.fillText(s.label, lx + 20, 15);
+            lx += tsCtx.measureText(s.label).width + 40;
         });
 
         series.forEach(s => {
             if (s.data.length < 2) return;
             const data = s.data;
             const maxVal = s.scale || Math.max(...data, 0.001);
-
             tsCtx.beginPath();
             tsCtx.strokeStyle = s.color;
-            tsCtx.lineWidth = 1.5;
-
+            tsCtx.lineWidth = 2;
             data.forEach((v, i) => {
                 const x = pad.left + (i / (data.length - 1)) * plotW;
                 const y = h - pad.bottom - (Math.min(v / maxVal, 1)) * plotH;
@@ -710,49 +975,82 @@
                 else tsCtx.lineTo(x, y);
             });
             tsCtx.stroke();
-
-            // Area fill
             tsCtx.lineTo(pad.left + plotW, h - pad.bottom);
             tsCtx.lineTo(pad.left, h - pad.bottom);
             tsCtx.closePath();
-            tsCtx.fillStyle = s.color + '15';
+            tsCtx.fillStyle = s.color + '18';
             tsCtx.fill();
         });
     }
 
     // ======================================================================
-    // CANVAS RESIZE
+    // RESIZE
     // ======================================================================
     function resizeCanvases() {
         [clusterCanvas, heatmapCanvas, tsCanvas].forEach(c => {
             const rect = c.getBoundingClientRect();
-            c.width = rect.width * window.devicePixelRatio;
-            c.height = rect.height * window.devicePixelRatio;
-            c.getContext('2d').scale(window.devicePixelRatio, window.devicePixelRatio);
+            const dpr = window.devicePixelRatio || 1;
+            c.width = rect.width * dpr;
+            c.height = rect.height * dpr;
+            c.getContext('2d').setTransform(1, 0, 0, 1, 0, 0);
+            c.getContext('2d').scale(dpr, dpr);
         });
         initNodePositions();
+        if (history.successRate && history.successRate.length) updateSlaGauge(history.successRate[history.successRate.length - 1]);
     }
 
     // ======================================================================
-    // API CALLS
+    // API + KEYBOARD
     // ======================================================================
     async function startTraining(agentType) {
         try {
-            const res = await fetch(`/api/start?agent_type=${agentType}&steps=50000`, { method: 'POST' });
+            const steps = parseInt(document.getElementById('stepsInput').value, 10) || 50000;
+            const curriculum = document.getElementById('curriculumCheck').checked;
+            const checkpoint = (document.getElementById('checkpointInput').value || '').trim();
+            let url = `/api/start?agent_type=${encodeURIComponent(agentType)}&steps=${steps}&curriculum=${curriculum}`;
+            if (checkpoint) url += '&checkpoint=' + encodeURIComponent(checkpoint);
+            const res = await fetch(url, { method: 'POST' });
             const data = await res.json();
-            console.log('Start:', data);
-            // Reset tracking
             actionCounts = new Array(9).fill(0);
             totalActions = 0;
             for (const k in history) history[k] = [];
+            for (const k in sparkHistory) sparkHistory[k] = [];
+            document.getElementById('eventTicker').innerHTML = '';
+            events.length = 0;
+            pushEvent('Started ' + agentType + ' (' + steps + ' steps, curriculum=' + curriculum + ')', 'reward');
         } catch (e) { console.error(e); }
+    }
+
+    function toggleClusterFullscreen() {
+        const panel = document.getElementById('clusterPanel');
+        if (!document.fullscreenElement) {
+            panel.requestFullscreen().catch(() => {});
+        } else {
+            document.exitFullscreen();
+        }
+    }
+
+    function exportChartPNG(canvasId, filename) {
+        const c = document.getElementById(canvasId);
+        if (!c) return;
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = c.toDataURL('image/png');
+        link.click();
     }
 
     async function stopTraining() {
         try {
             await fetch('/api/stop', { method: 'POST' });
+            pushEvent('Training stopped', '');
         } catch (e) { console.error(e); }
     }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        if (e.code === 'Space') { e.preventDefault(); startTraining('ppo'); }
+        if (e.code === 'KeyS') { e.preventDefault(); stopTraining(); }
+    });
 
     // ======================================================================
     // ANIMATION LOOP
@@ -761,12 +1059,13 @@
         drawClusterMap();
         drawHeatmap();
         drawTimeSeries();
+        drawSparkline('sparkSuccess', 'successRate', '#00ff88');
+        drawSparkline('sparkLatency', 'latency', '#ffd93d');
+        drawSparkline('sparkCost', 'cost', '#a855f7');
+        drawSparkline('sparkReward', 'reward', '#00d4ff');
         requestAnimationFrame(animate);
     }
 
-    // ======================================================================
-    // INIT
-    // ======================================================================
     window.addEventListener('resize', resizeCanvases);
     resizeCanvases();
     connectWS();
