@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Training Metrics — RL-Traffic-Control</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=JetBrains+Mono:wght@400&display=swap');
+        :root { --bg: #05070d; --card: #0e1220; --border: rgba(0,212,255,0.2); --text: #e2e8f4; --muted: #64748b; --green: #00ff88; --yellow: #ffd93d; --purple: #a855f7; --cyan: #00d4ff; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px; }
+        h1 { font-size: 24px; margin-bottom: 8px; color: var(--cyan); }
+        p { color: var(--muted); margin-bottom: 20px; }
+        a { color: var(--cyan); }
+        .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+        .chart-card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 12px; }
+        canvas { width: 100%; height: 280px; display: block; }
+        .controls { margin-bottom: 20px; }
+        .controls button { padding: 8px 16px; margin-right: 8px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; color: var(--text); cursor: pointer; font-family: inherit; }
+        .controls button:hover { border-color: var(--cyan); }
+    </style>
+</head>
+<body>
+    <h1>📈 Training Metrics</h1>
+    <p>Full-session episode metrics from the dashboard. <a href="/">← Back to Dashboard</a></p>
+    <div class="controls">
+        <button onclick="loadMetrics()">Refresh</button>
+        <button onclick="exportJSON()">Export JSON</button>
+    </div>
+    <div class="charts">
+        <div class="chart-card"><h2>Episode Reward</h2><canvas id="cReward"></canvas></div>
+        <div class="chart-card"><h2>Success Rate</h2><canvas id="cSuccess"></canvas></div>
+        <div class="chart-card"><h2>Avg Latency (ms)</h2><canvas id="cLatency"></canvas></div>
+        <div class="chart-card"><h2>Avg Cost</h2><canvas id="cCost"></canvas></div>
+    </div>
+    <script>
+        let metricsData = [];
+        const colors = { reward: '#00d4ff', success: '#00ff88', latency: '#ffd93d', cost: '#a855f7' };
+
+        async function loadMetrics() {
+            try {
+                const r = await fetch('/api/metrics?last=1000');
+                const data = await r.json();
+                metricsData = data.metrics || [];
+                drawAll();
+            } catch (e) { console.error(e); }
+        }
+
+        function drawChart(canvasId, key, color, label) {
+            const c = document.getElementById(canvasId);
+            if (!c) return;
+            const ctx = c.getContext('2d');
+            const w = c.width = c.offsetWidth;
+            const h = c.height = c.offsetHeight;
+            ctx.clearRect(0, 0, w, h);
+            if (!metricsData.length) { ctx.fillStyle = '#64748b'; ctx.font = '14px Syne'; ctx.textAlign = 'center'; ctx.fillText('No data. Start training from the dashboard.', w/2, h/2); return; }
+            const pad = { left: 48, right: 16, top: 16, bottom: 28 };
+            const plotW = w - pad.left - pad.right;
+            const plotH = h - pad.top - pad.bottom;
+            const vals = metricsData.map(m => m[key] ?? 0);
+            const minV = Math.min(...vals);
+            const maxV = Math.max(...vals) || 1;
+            const range = maxV - minV || 1;
+            ctx.strokeStyle = 'rgba(0,212,255,0.2)';
+            ctx.beginPath();
+            ctx.moveTo(pad.left, pad.top);
+            ctx.lineTo(pad.left, h - pad.bottom);
+            ctx.lineTo(w - pad.right, h - pad.bottom);
+            ctx.stroke();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            vals.forEach((v, i) => {
+                const x = pad.left + (i / (vals.length - 1 || 1)) * plotW;
+                const y = h - pad.bottom - ((v - minV) / range) * plotH;
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+            ctx.fillStyle = color + '20';
+            ctx.lineTo(pad.left + plotW, h - pad.bottom);
+            ctx.lineTo(pad.left, h - pad.bottom);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function drawAll() {
+            drawChart('cReward', 'total_reward', colors.reward);
+            drawChart('cSuccess', 'success_rate', colors.success);
+            drawChart('cLatency', 'avg_latency', colors.latency);
+            drawChart('cCost', 'avg_cost', colors.cost);
+        }
+
+        function exportJSON() {
+            const blob = new Blob([JSON.stringify({ metrics: metricsData }, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'dashboard_metrics.json';
+            a.click();
+        }
+
+        loadMetrics();
+        setInterval(loadMetrics, 5000);
+    </script>
+</body>
+</html>
