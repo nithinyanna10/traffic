@@ -8,7 +8,7 @@ and cost sensitivity. Supports curriculum-driven traffic rate scaling.
 from __future__ import annotations
 
 import random
-from typing import Optional
+from typing import Optional, List
 
 from env.services import Request
 
@@ -20,18 +20,35 @@ class RequestGenerator:
         self,
         traffic_rate: float = 1.0,
         seed: Optional[int] = None,
+        burst_probability: float = 0.0,
+        burst_size: int = 3,
     ):
         """
         Args:
             traffic_rate: Multiplier for request generation probability.
                           1.0 = one request per step on average.
             seed: Random seed for reproducibility.
+            burst_probability: Probability each step of generating a burst (0 = off).
+            burst_size: Number of requests in a burst when one occurs.
         """
         self.traffic_rate = traffic_rate
+        self._burst_probability = burst_probability
+        self._burst_size = burst_size
         self._rng = random.Random(seed)
 
     def set_traffic_rate(self, rate: float) -> None:
         self.traffic_rate = rate
+
+    def set_burst_config(self, probability: float, size: int) -> None:
+        """Set burst probability and size (curriculum)."""
+        self._burst_probability = probability
+        self._burst_size = max(1, size)
+
+    def maybe_get_burst(self) -> Optional[List[Request]]:
+        """With probability burst_probability return a burst of requests; else None."""
+        if self._burst_probability <= 0 or self._rng.random() >= self._burst_probability:
+            return None
+        return self.generate_burst(self._burst_size)
 
     def generate(self) -> Optional[Request]:
         """Generate a request (or None if no request this step)."""
